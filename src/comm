@@ -1,0 +1,3 @@
+jyan@ludwig:/a3/jyan/work/SOM/SOM/src$ g++ -I/home/jyan/local/Lapackpp1.1a/include -c subrout.cc
+jyan@ludwig:/a3/jyan/work/SOM/SOM/src$ g++ -I/home/jyan/local/Lapackpp1.1a/include -shared -g -o test.so subrout.o ~/local/Lapackpp1.1a/libblas++.a ~/local/Lapackpp1.1a/liblapack++.a ~/local/Lapackpp1.1a/liblamatrix++.a /usr/lib/liblapack.so.2.3.0 /usr/lib/libblas.so.2.2.0 -lm -lg2c
+

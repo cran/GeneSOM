@@ -1,3 +1,6 @@
+#ifndef TNTSUPP_H
+#define TNTSUPP_H
+
 #include <iostream>
 #include "tnt/subscript.h"
 #include "tnt/tnt.h"
@@ -8,7 +11,12 @@
 #include "tnt/transv.h"
 #include "tnt/lu.h"
 
-using namespace TNT;
+//using namespace std;
+//using namespace TNT;
+
+
+namespace TNT
+{
 
 typedef Vector<double> DVector;
 typedef Vector<int> IVector;
@@ -344,20 +352,6 @@ inline Fortran_Matrix<T> operator*(const T &x, const Fortran_Matrix<T>  &A) {
 }
 
 // utilities:
-Fortran_Matrix<double> ident (int n) {
-  Fortran_Matrix<double> ans(n,n);
-  for (int i = 1; i <= n; i++) ans(i,i) = 1.0;
-  return ans;
-}
-
-Fortran_Matrix<double> MatRowCol(const Fortran_Matrix<double> &mat, const Vector<double> &r, const Vector<double> &c) {
-  int m = r.size(), n = c.size();
-  Fortran_Matrix<double> ans(m,n);
-  for (int i = 1; i <= m; i++)
-    for (int j = 1; j <= n; j++) 
-      ans(i,j) = mat((int) r(i), (int) c(j));
-  return ans;
-}
 
 template <class T>
 Region2D<Fortran_Matrix<T> > MatRow(Fortran_Matrix<T> &x, int i) {
@@ -397,61 +391,6 @@ Vector<T> asVec(const Region1D<Vector<T> > &x) {
   return ans;
 }
 
-
-Fortran_Matrix<double> rho2mat(const Vector<double> &rho) {
-  int s = rho.size(); // s = n(n-1)/2
-  int n = (int) (0.5 * ( 1 + sqrt(1 + 8 * s)));
-  Fortran_Matrix<double> fullmat = ident(n); 
-  int k = 1;
-  for (int i = 1; i <= n - 1; i++)
-    for (int j = i + 1; j <= n; j++) {
-	fullmat(i, j) = rho(k++);
-	fullmat(j, i) = fullmat(i, j);
-    }
-  return fullmat;
-}
-
-//solve(a, b = ident(n))
-DMatrix solve(const DMatrix &a, const DMatrix &b) {
-  Subscript m = a.dim(1); assert(m == a.dim(2));
-  Subscript n = b.dim(1); assert(m == n);
-  Subscript l = b.dim(2);
-  Vector<Subscript> index(m);
-  DMatrix T(a), B(b);
-  DMatrix ans(n,l);
-  if (LU_factor(T, index) != 0) {
-    cout << "LU_factor() failed." << endl; 
-    return ans;
-  }
-  DVector v(m);
-  for (int i  = 1; i <= l; i++) {
-    v = asVec(MatCol(B,i));
-    LU_solve(T, index, v);
-    MatCol(ans, i) = asColMat(v);
-  }
-  return ans;  
-}
-
-DVector solve(const DMatrix &A, const DVector &b) {
-  DMatrix T(A); Vector<Subscript> index(b.size());
-  DVector ans(b);
-  if (LU_factor(T, index) !=0) {
-    cout << "LU_factor() failed." << endl;
-    return ans;
-  }
-
-  if (LU_solve(T, index, ans) != 0)  {
-    cout << "LU_Solve() failed." << endl;
-    return ans;
-  }
-  return ans;
-} 
-
-DMatrix solve(const DMatrix &a) {
-  DMatrix b = ident(a.dim(1));
-  return solve(a, b);
-}
-
 // transp(A) * inv(B) * C
 template <class Matrix, class T>
 Fortran_Matrix<T> matmult(
@@ -485,21 +424,9 @@ inline Fortran_Matrix<T> operator*(const Transpose_View<Matrix> & A, const Fortr
     return matmult(A,B);
 }
 
-
-
-DMatrix AtBiC(const DMatrix &A, const DMatrix &B, const DMatrix &C) {
-  DMatrix BiC = solve(B, C);
-  return Transpose_view(A) * BiC;
-}
-
-DVector AtBiC(const DMatrix &A, const DMatrix &B, const DVector &C) {
-  DVector BiC = solve(B, C);
-  return Transpose_view(A) * BiC;
-}
-
 //crossprod
 template <class T>
-Fortran_Matrix<T> crossprod(const Vector<T> &v) {
+Fortran_Matrix<T> outerprod(const Vector<T> &v) {
   int n = v.size();
   Fortran_Matrix<T> ans(n,n);
   for (int i = 1; i <= n; i++)
@@ -509,7 +436,7 @@ Fortran_Matrix<T> crossprod(const Vector<T> &v) {
 }
 
 template <class T>
-Fortran_Matrix<T> crossprod(const Vector<T> &v1, const Vector<T> &v2) {
+Fortran_Matrix<T> outerprod(const Vector<T> &v1, const Vector<T> &v2) {
   int m = v1.size(), n = v2.size();
   Fortran_Matrix<T> ans(m,n);
   for (int i = 1;  i <= m; i++)
@@ -517,3 +444,57 @@ Fortran_Matrix<T> crossprod(const Vector<T> &v1, const Vector<T> &v2) {
       ans(i,j) = v1(i) * v2(j);
   return ans;
 }
+
+template <class T>
+T fmax(const Vector<T> & v) {
+  T ans = v(1);
+  for (int i = 1; i <= v.dim(); i++)
+    if (ans < v(i)) ans = v(i);
+  return ans;
+}
+
+template <class T>
+T fmin(const Vector<T> & v) {
+  T ans = v(1);
+  for (int i = 1; i <= v.dim(); i++)
+    if (ans > v(i)) ans = v(i);
+  return ans;
+}
+
+template <class T>
+T fmax(const Fortran_Matrix<T> &m) {
+  T ans = m(1, 1);
+  for (int i = 1; i <= m.dim(1); i++)
+    for (int j = 1; j <= m.dim(2); j++)
+      if (ans < m(i, j)) ans = m(i, j);
+  return ans;
+}
+
+template <class T>
+T fmin(const Fortran_Matrix<T> &m) {
+  T ans = m(1, 1);
+  for (int i = 1; i <= m.dim(1); i++)
+    for (int j = 1; j <= m.dim(2); j++)
+      if (ans > m(i, j)) ans = m(i, j);
+  return ans;
+}
+template <class T>
+T sum(const Vector<T> &v) {
+  T ans = 0;
+  for (int i = 1; i <= v.dim(); i++)
+    ans += v(i);
+  return ans;
+}
+
+template <class T>
+T sum(const Fortran_Matrix<T> &m) {
+  T ans = 0;
+  for (int i = 1; i <= m.dim(1); i++)
+    for (int j = 1; j <= m.dim(2); j++)
+      ans += m(i, j);
+  return ans;
+}
+
+} //namespace TNT
+
+#endif //TNTSUPP_H

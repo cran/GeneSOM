@@ -16,4 +16,6 @@ somgrids(xdim, ydim, color, yadj=0.1, hexa, ntik, ylim)
 \details{
   These are not to be called by the user.
 }
-\keyword{ utilities }
+\keyword{
+  utilities
+}

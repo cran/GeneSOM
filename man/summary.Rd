@@ -14,6 +14,8 @@
   \item{obj}{ a `som' object }
 }
 
-\author{ Jun Yan <jyan@stat.wisc.edu> }
+\author{
+  Jun Yan <jyan@stat.wisc.edu>
+}
 
-\keyword{ som, print }
+\keyword{print}

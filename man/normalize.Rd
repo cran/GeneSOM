@@ -27,7 +27,7 @@ normalize(x, byrow=TRUE)
   \code{\link{filtering}}.
 }
 \keyword{
-  array, manip
+  manip
 }
 
 

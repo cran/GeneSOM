@@ -1,6 +1,6 @@
 Package: GeneSOM
-Version: 0.1-2
-Date: 2001/4/21
+Version: 0.1-4
+Date: 2001/8/29
 Title: Self-Organizing Map
 Author: Jun Yan <jyan@stat.wisc.edu>
 Maintainer: Jun Yan <jyan@stat.wisc.edu>

@@ -1,17 +1,16 @@
 \name{summary.som}
 \alias{summary.som}
-\alias{summary.print.som}
 \alias{print.som}
 \title{ summarize a som object }
 \description{print out the configuration parameters of a som object
 }
 \usage{
-\method{summary}{som}(obj)
-\method{print}{som}(obj)
+\method{summary}{som}(object, ...)
+\method{print}{som}(x, ...)
 }
 
 \arguments{
-  \item{obj}{ a `som' object }
+  \item{object, x}{ a `som' object }
 }
 
 \author{
@@ -19,3 +18,4 @@
 }
 
 \keyword{print}
+

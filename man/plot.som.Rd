@@ -5,11 +5,11 @@
  Plot the SOM in a 2-dim map with means and sd bars.
 }
 \usage{
-\method{plot}{som}(obj, sdbar=1, ylim=c(-5, 5), color=TRUE,
+\method{plot}{som}(x, sdbar=1, ylim=c(-5, 5), color=TRUE,
 ntik=3, yadj=0.1, xlab="", ylab="", ...)
 }
 \arguments{
-  \item{obj}{ a som object }
+  \item{x}{ a som object }
   \item{sdbar}{ the length of sdbar in sd, no sdbar if sdbar=0 }
   \item{ylim}{ the range of y axies in each cell of the map }
   \item{color}{ whether or not use color plotting }
@@ -27,3 +27,4 @@ plot(foo, ylim=c(-1, 1))
 \keyword{
   hplot
 }
+

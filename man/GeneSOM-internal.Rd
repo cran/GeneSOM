@@ -3,7 +3,7 @@
 \alias{inrange}
 \alias{plotcell}
 \alias{somgrids}
-\title{ Internal GeneSOM functions}
+\title{Internal GeneSOM functions}
 \description{
   Internal GeneSOM functions.
 }
@@ -14,8 +14,6 @@ plotcell(x, y, dat, code, n, sdbar=1, ylim, yadj)
 somgrids(xdim, ydim, color, yadj=0.1, hexa, ntik, ylim)
 }
 \details{
-  These are not to be called by the user.
+  These are not to be called directly by the user.
 }
-\keyword{
-  utilities
-}
+\keyword{internal}

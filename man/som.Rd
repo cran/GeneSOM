@@ -7,7 +7,8 @@ Function to train a Self-Organizing Map
 Produces an object of class "som" which is a Self-Organizing Map fit of the data.
 }
 \usage{
-som(data, xdim, ydim, init="linear", alpha=NULL, alphaType="inverse", neigh="gaussian", topol="rect", radius=NULL, rlen=NULL)
+som(data, xdim, ydim, init="linear", alpha=NULL, alphaType="inverse",
+neigh="gaussian", topol="rect", radius=NULL, rlen=NULL)
 }
 \arguments{
   \item{data}{
@@ -59,16 +60,42 @@ som(data, xdim, ydim, init="linear", alpha=NULL, alphaType="inverse", neigh="gau
   }
 }
 \value{
-  An object of class \code{"som"} representing the fit.
+  An object of class \code{"som"} representing the fit, which is a list
+  containing the following components:
+  
+  \item{data}{the dataset on which som was applied.}
+  \item{init}{a character string indicating the initializing method.}
+  \item{xdim}{an integer specifying the x-dimension of the map.}
+  \item{ydim}{an integer specifying the y-dimension of the map.}
+  \item{code}{a metrix with nrow = xdim*ydim, each row corresponding to
+    a code vector of a cell in the map. The mapping from cell coordinate
+    (x, y) to the row index in the code matrix is:
+    rownumber = x + y * xdim
+  }
+  \item{visual}{a data frame of three columns, with the same number of
+    rows as in data: x and y are the coordinate of the corresponding
+    observation in the map, and qerror is the quantization error
+    computed as the squared distance (depends topol) between the observation
+    vector and its coding vector.
+  }
+  \item{alpha}{a vector of initial learning rate parameter for the two
+    training phases.}
+  \item{alphaType}{a character string specifying learning rate funciton
+    type.}
+  \item{neigh}{a character string specifying the neighborhood function
+    type.}
+  \item{topol}{a character string specifying the topology type when measuring
+    distance in the map.}
+  \item{radius}{a vector of initial radius of the training area in
+    som-algorithm for the two training phases.}
+  \item{rlen}{a vector of running length in the two training phases.}
 }
 \references{
-Kohonen, Hynninen, Kangas, and Laaksonen (1995), SOM-PAK, the
-Self-Organizing Map Program Package (version 3.1)
+  Kohonen, Hynninen, Kangas, and Laaksonen (1995), SOM-PAK, the
+  Self-Organizing Map Program Package (version 3.1).
+  http://www.cis.hut.fi/research/papers/som\_tr96.ps.Z}
 \author{
   Jun Yan <jyan@stat.wisc.edu>
-}
-\seealso{
-\code{\link{glm}}, \code{\link{lm}}, \code{\link{formula}}.
 }
 \examples{
 data(yeast)

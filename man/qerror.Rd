@@ -20,4 +20,5 @@ qerror(obj, radius=1)
 \examples{
 foo <- som(matrix(rnorm(1000), 100), 2, 4)
 qerror(foo, 3)
+}
 \keyword{arith}

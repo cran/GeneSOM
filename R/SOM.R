@@ -163,13 +163,13 @@ somgrids <- function(xdim, ydim, color,
   }
 }
 
-plot.som <- function(obj, sdbar=1, ylim=c(-3, 3), color=TRUE, ntik=3, yadj=0.1,
+plot.som <- function(x, sdbar=1, ylim=c(-3, 3), color=TRUE, ntik=3, yadj=0.1,
                      xlab="", ylab="", ...) {
- if (class(obj) != "som" ) stop("The funciton must apply to a som object.\n")
- hexa <- (obj$topol == "hexa")
+ if (class(x) != "som" ) stop("The funciton must apply to a som object.\n")
+ hexa <- (x$topol == "hexa")
  if (hexa) d <- 1/2
  else d <- 0
- xdim <- obj$xdim; ydim <- obj$ydim
+ xdim <- x$xdim; ydim <- x$ydim
  plot(c(0,xdim+d), c(0,ydim), xlim=c(0,xdim+d), ylim=c(0, ydim),
       type="n", xlab=xlab, ylab=ylab, axes=F, ...)
  axis(1, 0:xdim, 0:xdim)
@@ -180,30 +180,26 @@ plot.som <- function(obj, sdbar=1, ylim=c(-3, 3), color=TRUE, ntik=3, yadj=0.1,
    if (hexa) d <- (i %% 2)/2
    else d <- 0
    for (j in 0:(xdim-1)) {
-     ind <- obj$visual$x==j & obj$visual$y==i
+     ind <- x$visual$x==j & x$visual$y==i
      n <- length(ind[ind])
      plotcell(j+d, i,
-              obj$data[ind, ], obj$code[i*xdim + j+1,], n,
+              x$data[ind, ], x$code[i*xdim + j+1,], n,
               sdbar=sdbar, ylim=ylim, yadj=yadj)
    }
  }
 }
 
-print.som <- function(obj) {
-  tmp <- summary(obj)
+print.som <- function(x, ...) {
+  tmp <- summary(x)
   print(tmp)
 }
 
-summary.som <- function(obj) {
-  tmp <- list(init=obj$init, neigh=obj$neigh, topol=obj$topol,
-              xdim=obj$xdim, ydim=obj$ydim,
-              alpha=obj$alpha, alphaType=obj$alphaType,
-              radius=obj$radius, rlen=obj$rlen)
+summary.som <- function(object, ...) {
+  tmp <- list(init=object$init, neigh=object$neigh, topol=object$topol,
+              xdim=object$xdim, ydim=object$ydim,
+              alpha=object$alpha, alphaType=object$alphaType,
+              radius=object$radius, rlen=obj$rlen)
   tmp
-}
-
-summary.print.som <- function(obj) {
-  print(summary(tmp))
 }
 
 qerror <- function(obj, radius=1) {

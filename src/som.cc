@@ -5,7 +5,7 @@
 #include LA_VECTOR_DOUBLE_H
 #include "blas++.h"
 
-#define INV_ALPHA_CONST 100.0
+#include "SomParam.h"
 
 void rect2hexa(double x, double y, double *u, double *v) {
   if (((int)(y) % 2) == 0) {
@@ -113,106 +113,6 @@ LaGenMatDouble genCord(int xdim, int ydim) {
   }
   return cord;
 }
-
-
-class SomParam {
-public:
-  typedef double SomParam::Alpha(double alpha_0, int t, int rlen);
-  typedef double SomParam::Dist(LaGenMatDouble v1, LaGenMatDouble v2);
-  typedef LaVectorDouble SomParam::Neigh(LaGenMatDouble &cord,
-			       int size, int winner, 
-			       double radius, 
-			       double (*Dist)(LaGenMatDouble, LaGenMatDouble));
-
-private:
-  static double rect_dist(LaGenMatDouble v1, LaGenMatDouble v2) {
-    return norm2(v1 - v2);
-  };
-
-  static double hexa_dist(LaGenMatDouble v1, LaGenMatDouble v2) {
-    LaGenMatDouble u1 = rect2hexa(v1);
-    LaGenMatDouble u2 = rect2hexa(v2);
-    return rect_dist(u1, u2);
-  };
-  
-  static double lin_alpha(double alpha_0, int t, int rlen) {
-    return alpha_0 * (1.0 - (double) t / rlen);
-  };
-  
-  static double inv_alpha(double alpha_0, int t, int rlen) {
-    double C = rlen / INV_ALPHA_CONST; 
-    return alpha_0 * C / (C + t);
-  };
-  
-  static LaVectorDouble bubble_neigh(LaGenMatDouble &cord,
-				     int size, int winner, 
-				     double radius,
-				     double (*dist)(LaGenMatDouble, 
-						    LaGenMatDouble)) {
-    int i;
-    double dd;
-    LaVectorDouble neigh(size);
-    for (i = 0; i < size; i++) {
-      dd = dist(cord(LaIndex(i), LaIndex()),
-		      cord(LaIndex(winner), LaIndex()));
-      neigh(i) = (dd <= radius) ? 1.0 : 0.0;
-    }
-    return neigh;
-  };
-  
-  static LaVectorDouble gaussian_neigh(LaGenMatDouble &cord,
-				       int size, int winner, 
-				       double radius,
-				       double (*dist)(LaGenMatDouble, 
-						      LaGenMatDouble)) {
-    int i;
-    double dd;
-    LaVectorDouble neigh(size);
-    for (i = 0; i < size; i++) {
-      dd = dist(cord(LaIndex(i), LaIndex()),
-		cord(LaIndex(winner), LaIndex()));
-      neigh(i) = exp( - dd * dd / 2.0 / radius / radius);
-    }
-    return neigh;
-  };
-
-  Alpha *_alpha;
-  Dist *_dist;
-  Neigh *_neigh;
-  //static Alpha *Alpha_list[2] = {lin_alpha, inv_alpha};
-  //static Dist *Dist_list[2] = {rect_dist, hexa_dist};
-  //static Neigh *Neigh_list[2] = {bubble_neigh, gaussian_neigh};
-public:
-
-  SomParam(int alphaType, int neighType, int topol) {
-    Alpha *Alpha_list[2] = {lin_alpha, inv_alpha};
-    Dist *Dist_list[2] = {rect_dist, hexa_dist};
-    Neigh *Neigh_list[2] = {bubble_neigh, gaussian_neigh};
-    _alpha = Alpha_list[alphaType - 1];
-    _dist = Dist_list[topol - 1];
-    _neigh = Neigh_list[neighType - 1];
-    //if (alphaType == 1) _alpha = lin_alpha;
-    //else _alpha = inv_alpha;
-    //if (topol == 1) _dist = rect_dist;
-    //else _dist = hexa_dist;
-    //if (neighType == 1) _neigh = bubble_neigh;
-    //else _neigh = gaussian_neigh;
-  }
-  double alpha(double alpha_0, int t, int rlen) {
-    return _alpha(alpha_0, t, rlen);
-  }
-  double dist(LaGenMatDouble v1, LaGenMatDouble v2) {
-    return _dist(v1, v2);
-  }
-  LaVectorDouble neigh(LaGenMatDouble &cord,
-		       int size, int winner, 
-		       double radius) {
-  //double (*Dist)(LaGenMatDouble, LaGenMatDouble)) {
-    return _neigh(cord, size, winner, radius, _dist);
-  } 
-
-  ~SomParam() {}
-};
 
 
 void visual(LaGenMatDouble &data, LaGenMatDouble &code, 

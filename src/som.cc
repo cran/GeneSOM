@@ -81,7 +81,7 @@ double qerror(DMatrix &data, DMatrix &code,
 
 void som_train(DMatrix &data, DMatrix &code, DMatrix &cord, 
 	       DMatrix &vis, SomParam &p) {
-  int size = p.mapsize();
+  //int size = p.mapsize();
   for (Subscript i = 1; i <= p.rlen(); i++) {
     Subscript obs = (i - 1) % data.num_rows() + 1;
     Subscript winner = find_winner(data, obs, code);

@@ -1,3 +1,7 @@
+04/18/2002: 0.2-4
+  * fixed linear initialization using prcomp (thank to Michael Meyer).
+  * In linear initialization, now always give the 1st prciple component to the bigger dimension, and one of xdim and ydim can be 1.
+
 12/19/2001: 0.2-1
   new features:
   * provides a som.train function which can perform som training interactively with user inputed code matrix, learning rate, learning radius, training length, etc. 
@@ -7,4 +11,3 @@
   Inplementing:
   * changed the underlying c++ matrix classes from lapack++ to tnt.
   * changed .C interface to .Call.
-

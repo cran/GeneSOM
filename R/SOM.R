@@ -1,4 +1,6 @@
 som.init <- function(data, xdim, ydim, init="linear") {
+  ## make sure xdim * ydim > 1
+  if (xdim == 1 && ydim == 1) stop("Need at least two map cells.")
   INIT <- c("sample", "random", "linear")
   init.type <- pmatch(init, INIT)
   if (is.na(init.type))
@@ -23,13 +25,29 @@ som.init <- function(data, xdim, ydim, init="linear") {
 
   LinearInit <- function(xdim, ydim) {
     ## get the first two principle components
-    pc <- princomp(data)$loadings[,1:2]
+    pcm <- prcomp(data)
+    pc <- pcm$rotation[,1:2]
+    sd <- pcm$sdev[1:2]
     mn <- apply(data, 2, mean)
     ans <- matrix(NA, xdim * ydim, dim(data)[2])
+    ## give the 1st pc to the bigger dimension
+    if (xdim >= ydim) {
+      xtick <- sd[1] * pc[,1]
+      ytick <- sd[2] * pc[,2]
+    }else {
+      xtick <- sd[2] * pc[,2]
+      ytick <- sd[1] * pc[,1]
+    }
+    if (xdim == 1) xis <- rep(0, xdim)
+    else xis <- seq(-2, 2, length=xdim)
+    if (ydim == 1) yis <- rep(0, ydim)
+    else yis <- seq(-2, 2, length=ydim)
     for (i in 1:(xdim*ydim)) {
-      xf <- 4 * (i - 1) %% xdim / (xdim - 1) - 2
-      yf <- 4 * (i - 1) %/% xdim / (ydim - 1) - 2
-      ans[i, ] <- mn + xf * pc[,1] + yf * pc[,2]
+      ##xf <- 4 * (i - 1) %% xdim / (xdim - 1) - 2
+      ##yf <- 4 * (i - 1) %/% xdim / (ydim - 1) - 2
+      xi <- (i - 1) %% xdim + 1
+      yi <- (i - 1) %/% xdim + 1
+      ans[i, ] <- mn + xis[xi] * xtick + yis[yi] * ytick
     }
     ans
   }
@@ -342,7 +360,7 @@ plot.som <- function(x, sdbar=1, ylim=c(-3, 3), color=TRUE, ntik=3, yadj=0.1,
  else d <- 0
  xdim <- x$xdim; ydim <- x$ydim
  plot(c(0,xdim+d), c(0,ydim), xlim=c(0,xdim+d), ylim=c(0, ydim),
-      type="n", xlab=xlab, ylab=ylab, axes=F, ...)
+      type="n", xlab=xlab, ylab=ylab, axes=FALSE, ...)
  axis(1, 0:xdim, 0:xdim)
  
  somgrids(xdim, ydim, color=color, yadj=yadj, hexa=hexa, ylim=ylim, ntik=ntik)

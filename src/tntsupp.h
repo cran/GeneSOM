@@ -356,7 +356,7 @@ inline Fortran_Matrix<T> operator*(const T &x, const Fortran_Matrix<T>  &A) {
 template <class T>
 Region2D<Fortran_Matrix<T> > MatRow(Fortran_Matrix<T> &x, int i) {
   int n = x.num_cols();
-  Index1D J(1,n), I(i,i);
+  Index1D I(i,i), J(1,n);
   return x(I,J);
 }
 

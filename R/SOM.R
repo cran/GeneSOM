@@ -1,15 +1,24 @@
-som <- function(data, xdim, ydim,
-                init = "linear",
-                alpha = NULL, alphaType = "inverse",
-                neigh = "gaussian", topol = "rect",
-                radius = NULL, rlen = NULL) {
+som.init <- function(data, xdim, ydim, init="linear") {
+  INIT <- c("sample", "random", "linear")
+  init.type <- pmatch(init, INIT)
+  if (is.na(init.type))
+    stop("Init only supports `sample', `random', and `linear'")
+
   SampleInit <- function(xdim, ydim) {
     ind <- sample(1:dim(data)[1], size=xdim*ydim)
     data[ind,]
   }
 
   RandomInit <- function(xdim, ydim) {
-    matrix(rnorm(xdim * ydim * dim(data)[2]), xdim*ydim)
+    ##uniformly random in (min, max) for each dimension
+    ans <- matrix(NA, xdim * ydim, dim(data)[2])
+    mi <- apply(data, 2, min)
+    ma <- apply(data, 2, max)
+    for (i in 1:(xdim*ydim)) {
+      ans[i,] <- mi + (ma - mi) * runif(ncol(ans))
+    }
+    ans
+    ##matrix(rnorm(xdim * ydim * dim(data)[2]), xdim*ydim)
   }
 
   LinearInit <- function(xdim, ydim) {
@@ -24,13 +33,22 @@ som <- function(data, xdim, ydim,
     }
     ans
   }
-
-  INIT <- c("sample", "random", "linear")
-  init.type <- pmatch(init, INIT)
-  if (is.na(init.type)) stop("Init only supports `sample', `ransom', and `linear'")
   
-  ALPHATYPE <- c("linear", "inverse")
-  alpha.type <- pmatch(alphaType, ALPHATYPE)
+  if (init.type == 1) code <- SampleInit(xdim, ydim)
+  if (init.type == 2) code <- RandomInit(xdim, ydim)
+  if (init.type == 3) code <- LinearInit(xdim, ydim)
+  code
+}
+
+som <- function(data, xdim, ydim,
+                init = "linear",
+                alpha = NULL, alphaType = "inverse",
+                neigh = "gaussian", topol = "rect",
+                radius = NULL, rlen = NULL, err.radius=1, inv.alp.c=NULL) {
+  code <-  som.init(data, xdim, ydim, init)
+
+  ALPHA <- c("linear", "inverse")
+  alpha.type <- pmatch(alphaType, ALPHA)
   if (is.na(alpha.type)) stop("AlphaType only supports `linear' and `inverse'.")
 
   NEIGH <- c("bubble", "gaussian")
@@ -41,10 +59,6 @@ som <- function(data, xdim, ydim,
   topol.type <- pmatch(topol, TOPOL)
   if (is.na(topol.type)) stop("Topol only supports `rect'.")
 
-  if (init.type == 1) code <- SampleInit(xdim, ydim)
-  if (init.type == 2) code <- RandomInit(xdim, ydim)
-  if (init.type == 3) code <- LinearInit(xdim, ydim)
-
   if (is.null(alpha)) alpha <- c(0.05, 0.02)
   else if (length(alpha) == 1) alpha <- c(alpha, alpha/2)
   
@@ -53,35 +67,190 @@ som <- function(data, xdim, ydim,
 
   if (is.null(rlen)) rlen <- c(dim(data)[1] * 2, dim(data)[1] * 10)
   else if (length(rlen) == 1) rlen <- c(rlen, rlen*10)
+
+  if (is.null(inv.alp.c)) inv.alp.c <- rlen/100;
+
+  ## for first round training 
+  paramv1 <- list(alpha=alpha.type, neigh=neigh.type, topol=topol.type,
+                   alpha0=alpha[1], radius0=radius[1], rlen=rlen[1],
+                   err.radius=err.radius, xdim=xdim, ydim=ydim,
+                   inv.alp.c=inv.alp.c[1])
+
+  ## for second round training
+  paramv2 <- list(alpha=alpha.type, neigh=neigh.type, topol=topol.type,
+                   alpha0=alpha[2], radius0=radius[2], rlen=rlen[2],
+                   err.radius=err.radius, xdim=xdim, ydim=ydim,
+                   inv.alp.c=inv.alp.c[2])
+
+  ## sparamv <- list(alpha=alpha.type, neigh=neigh.type, topol=topol.type)
+  foo <- .Call("som_bat", as.matrix(data), code, paramv1, paramv2)
+
+  if (!is.null(names(data))) names(foo$code) <- names(data)
+  foo$visual <- as.data.frame(foo$visual)
+  names(foo$visual) <-  c("x", "y", "qerror")
+  foo$qerror <- foo$qerror
   
-  foo <- .C("som", data=as.double(data),
-            as.integer(dim(data)[1]), as.integer(dim(data)[2]),
-            code = as.double(code),
-            xdim = as.integer(xdim),
-            ydim = as.integer(ydim),
-            alpha = as.double(alpha),
-            alphaType = as.integer(alpha.type),
-            neigh = as.integer(neigh.type),
-            topol = as.integer(topol.type),
-            radius = as.double(radius),
-            rlen = as.integer(rlen),
-            vis = double(dim(data)[1] * 3))
-  visual <- matrix(foo$vis, dim(data)[1], 3)
-  visual <- as.data.frame(visual)
-  names(visual) <- c("x", "y", "qerror")
-  ans <- list(data=data, init=init,
+  ##foo$data <- deparse(substitute(data))
+
+  foo <- list(data=data, code=foo$code, visual=foo$visual,
+              qerror=foo$qerror, init=init,
+              alpha=ALPHA[alpha.type],
+              neigh=NEIGH[neigh.type],
+              topol=TOPOL[topol.type],
+              alpha0=alpha, radius0=radius, rlen=rlen,
               xdim=xdim, ydim=ydim,
-              code=matrix(foo$code, xdim*ydim, dim(data)[2]),
-              visual=visual,
-              alpha = alpha, alphaType = alphaType,
-              neigh = neigh, topol = topol,
-              radius = radius, rlen = rlen)
-  class(ans) <- "som"
-  ans
+              err.radius=err.radius,
+              inv.alp.c=inv.alp.c)
+  foo$code.sum <- somsum(foo)
+  ## foo$som.par <- som.par
+  class(foo) <- "som"
+  foo
 }
 
-##dyn.load("/home/jyan/work/SOM/GeneSOM/src/test.so")
-##foo <- som(matrix(rnorm(100), 25, 4), 3, 4)
+som.train <- function(data, code, xdim, ydim,
+                      ##init = "linear",
+                      alpha = NULL, alphaType = "inverse",
+                      neigh = "gaussian", topol = "rect",
+                      radius = NULL, rlen = NULL, err.radius=1,
+                      inv.alp.c=NULL) {
+  ALPHA <- c("linear", "inverse")
+  alpha.type <- pmatch(alphaType, ALPHA)
+  if (is.na(alpha.type)) stop("AlphaType only supports `linear' and `inverse'.")
+
+  NEIGH <- c("bubble", "gaussian")
+  neigh.type <- pmatch(neigh, NEIGH)
+  if (is.na(neigh.type)) stop("Neigh only supports `bubble' and `gaussian'")
+
+  TOPOL <- c("rect", "hexa")
+  topol.type <- pmatch(topol, TOPOL)
+  if (is.na(topol.type)) stop("Topol only supports `rect'.")
+
+  if (is.null(alpha)) alpha <- 0.05
+  
+  if (is.null(radius)) radius <- min(xdim, ydim)
+  
+  if (is.null(rlen)) rlen <- dim(data)[1] * 2
+
+  if (is.null(inv.alp.c)) inv.alp.c <- rlen/100;
+
+  paramv <- list(alpha=alpha.type, neigh=neigh.type, topol=topol.type,
+                 alpha0=alpha[1], radius0=radius[1], rlen=rlen[1],
+                 err.radius=err.radius, xdim=xdim, ydim=ydim,
+                 inv.alp.c=inv.alp.c[1])
+  foo <- .Call("som", as.matrix(data), code, paramv)
+  if (!is.null(names(data))) names(foo$code) <- names(data)
+  foo$visual <- as.data.frame(foo$visual)
+  names(foo$visual) <-  c("x", "y", "qerror")
+  ##foo$data <- deparse(substitute(data))
+  foo <- list(data=data, code=foo$code, visual=foo$visual,
+              qerror=foo$qerror, init=NULL,
+              alpha=ALPHA[alpha.type],
+              neigh=NEIGH[neigh.type],
+              topol=TOPOL[topol.type],
+              alpha0=paramv$alpha0, radius0=paramv$radius0, rlen=paramv$rlen,
+              xdim=paramv$xdim, ydim=paramv$ydim,
+              err.radius=paramv$err.radius,
+              inv.alp.c=paramv$inv.alp.c)
+  foo$code.sum <- somsum(foo)
+  ## foo$som.par <- som.par
+  class(foo) <- "som"
+  foo
+}
+
+som.par <- function(obj) {
+  ALPHA <- c("linear", "inverse")
+  NEIGH <- c("bubble", "gaussian")
+  TOPOL <- c("rect", "hexa")
+  alpha.type <- pmatch(obj$alpha, ALPHA)
+  neigh.type <- pmatch(obj$neigh, NEIGH)
+  topol.type <- pmatch(obj$topol, TOPOL)
+  
+  paramv <- list(alpha=alpha.type, neigh=neigh.type, topol=topol.type,
+                 alpha0=obj$alpha0, radius0=obj$radius0, rlen=obj$rlen,
+                 err.radius=obj$err.radius, xdim=obj$xdim, ydim=obj$ydim,
+                 inv.alp.c=obj$inv.alp.c[1])
+  paramv
+}
+
+som.update <- function(obj, alpha = NULL, radius = NULL,
+                          rlen = NULL, err.radius = 1, inv.alp.c = NULL) {
+  paramv <- som.par(obj)
+  if (is.null(alpha)) paramv$alpha0 <- paramv$alpha0 / 2
+  if (is.null(radius)) paramv$radius0 <- min(3, min(obj$xdim, obj$ydim))
+  if (is.null(rlen)) paramv$rlen <- 5 * paramv$rlen
+  if (is.null(inv.alp.c)) paramv$inv.alp.c <- paramv$rlen / 100
+  paramv$err.radius <- err.radius
+  
+  foo <- .Call("som", as.matrix(obj$data), obj$code, paramv)
+  if (!is.null(names(data))) names(foo$code) <- names(data)
+  foo$visual <- as.data.frame(foo$visual)
+  names(foo$visual) <-  c("x", "y", "qerror")
+  foo$qerror <- foo$qerror
+  ##foo$data <- deparse(substitute(data))
+
+  foo <- list(data=obj$data, code=foo$code, visual=foo$visual,
+              qerror=foo$qerror, init=obj$init,
+              alpha=obj$alpha, neigh=obj$neigh, topol=obj$topol,
+              alpha0=paramv$alpha0, radius0=paramv$radius0, rlen=paramv$rlen,
+              xdim=paramv$xdim, ydim=paramv$ydim,
+              err.radius=paramv$err.radius,
+              inv.alp.c=paramv$inv.alp.c)
+  foo$code.sum <- somsum(foo)
+  ## foo$som.par <- som.par
+  class(foo) <- "som"
+  foo
+}
+  
+som.project <- function(obj, newdat) {
+  obj$data <- newdat
+  foo <- som.update(obj, rlen = 0)
+  foo$visual
+}
+
+qerror <- function(obj, err.radius = 1) {
+  if (err.radius == 1) obj$qerror
+  else {
+    ## som.update(obj, rlen=0, err.radius=err.radius)$qerror
+    paramv <- som.par(obj)
+    paramv$err.radius <- err.radius
+    .Call("som", as.matrix(obj$data), obj$code, paramv)$qerror
+  }
+}
+
+summary.som <- function(object, ...) {
+  cat("Initialization: ", object$init, "\n")
+  cat("Topology: ", object$topol, "\n")
+  cat("Neighborhood type: ", object$neigh, "\n")
+  cat("Learning rate type: ", object$alpha, "\n")
+  cat("Initial learning rate parameter: ", object$alpha0, "\n")
+  cat("Initial radius of training area: ", object$radius0, "\n")
+  cat("Average quantization error: ", mean(object$visual$qerror), "\n")
+  cat("Average distortion measure: ", object$qerror,
+        "with error radius: ", object$err.radius, "\n")
+}
+
+print.som <- function(x, ...) {
+  summary(x)
+  cat("The code book is:\n")
+  print(cbind(x$code.sum, x$code))
+}
+
+somsum <- function(obj) { 
+  xdim <- obj$xdim 
+  ydim <- obj$ydim 
+  m <- nrow(obj$code) 
+  x <- (1:m - 1) %% xdim 
+  y <- (1:m - 1) %/% xdim 
+  f <- function(ii) { 
+    x <- (ii - 1) %% xdim 
+    y <- (ii - 1) %/% xdim 
+    ind <- obj$visual$x == x & obj$visual$y == y 
+    n <- length(ind[ind]) 
+    n 
+  } 
+  nobs <- sapply(1:m, f) 
+  data.frame(x, y, nobs) 
+} 
 
 filtering <- function(x, lt=20, ut=16000, mmr=3, mmd=200) {
   if (!is.matrix(x)) x <- as.matrix(x)
@@ -104,6 +273,8 @@ normalize <- function(x, byrow=TRUE) {
     }
   else stop("The object to be normalized must be vector, matrix, or dataframe.\n")
 }
+
+## The following are to be orphaned, not clean code
 
 inrange <- function (x, xlim) {
   (x > xlim[1] & x < xlim[2])
@@ -187,44 +358,4 @@ plot.som <- function(x, sdbar=1, ylim=c(-3, 3), color=TRUE, ntik=3, yadj=0.1,
               sdbar=sdbar, ylim=ylim, yadj=yadj)
    }
  }
-}
-
-print.som <- function(x, ...) {
-  tmp <- summary(x)
-  print(tmp)
-}
-
-summary.som <- function(object, ...) {
-  tmp <- list(init=object$init, neigh=object$neigh, topol=object$topol,
-              xdim=object$xdim, ydim=object$ydim,
-              alpha=object$alpha, alphaType=object$alphaType,
-              radius=object$radius, rlen=obj$rlen)
-  tmp
-}
-
-qerror <- function(obj, radius=1) {
-  if (class(obj) != "som" ) stop("The funciton must apply to a som object.\n")
-  ALPHATYPE <- c("linear", "inverse")
-  alpha.type <- pmatch(obj$alphaType, ALPHATYPE)
-  if (is.na(alpha.type)) stop("AlphaType only supports `linear' and `inverse'.")
-
-  NEIGH <- c("bubble", "gaussian")
-  neigh.type <- pmatch(obj$neigh, NEIGH)
-  if (is.na(neigh.type)) stop("Neigh only supports `bubble' and `gaussian'")
-
-  TOPOL <- c("rect", "hexa")
-  topol.type <- pmatch(obj$topol, TOPOL)
-  if (is.na(topol.type)) stop("Topol only supports `rect'.")
-  ##data <- obj$data
-  ##code <- obj$code
-  ##visual <- as.matrix(obj$visual)
-  ans <- .C("find_qerror", as.double(obj$data),
-     as.integer(dim(obj$data)[1]), as.integer(dim(obj$data)[2]),
-     as.double(obj$code),
-     as.integer(obj$xdim), as.integer(obj$ydim),
-     as.integer(alpha.type),
-     as.integer(neigh.type), as.integer(topol.type),
-     as.double(radius), 
-     as.double(as.matrix(obj$visual)), qerror=double(1))$qerror
-  ans / dim(obj$data)[1]
 }

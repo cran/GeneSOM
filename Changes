@@ -1,0 +1,10 @@
+12/19/2001: 0.2-1
+  new features:
+  * provides a som.train function which can perform som training interactively with user inputed code matrix, learning rate, learning radius, training length, etc. 
+  * provides a som.update function to update a `som' object from updated training parameters.
+  * provides a som.project to project new data onto the map
+
+  Inplementing:
+  * changed the underlying c++ matrix classes from lapack++ to tnt.
+  * changed .C interface to .Call.
+

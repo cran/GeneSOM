@@ -1,5 +1,9 @@
 \name{som}
+\alias{som.init}
 \alias{som}
+\alias{som.train}
+\alias{som.update}
+\alias{som.project}
 \title{
 Function to train a Self-Organizing Map
 }
@@ -7,10 +11,20 @@ Function to train a Self-Organizing Map
 Produces an object of class "som" which is a Self-Organizing Map fit of the data.
 }
 \usage{
+som.init(data, xdim, ydim, init="linear")
 som(data, xdim, ydim, init="linear", alpha=NULL, alphaType="inverse",
-neigh="gaussian", topol="rect", radius=NULL, rlen=NULL)
+neigh="gaussian", topol="rect", radius=NULL, rlen=NULL, err.radius=1,
+inv.alp.c=NULL)
+som.train(data, code, xdim, ydim, alpha=NULL, alphaType="inverse",
+neigh="gaussian", topol="rect", radius=NULL, rlen=NULL, err.radius=1, inv.alp.c=NULL)
+som.update(obj, alpha = NULL, radius = NULL, rlen = NULL, err.radius =
+1, inv.alp.c = NULL)
+som.project(obj, newdat)
 }
 \arguments{
+  \item{obj}{a `som' object.}
+  \item{newdat}{a new dataset needs to be projected onto the map.}
+  \item{code}{a matrix of initial code vector in the map.}
   \item{data}{
     a data frame or matrix of input data.
   }
@@ -58,8 +72,23 @@ neigh="gaussian", topol="rect", radius=NULL, rlen=NULL)
   \item{rlen}{
     a vector of running length (number of steps) in the two training phases.
   }
+  \item{err.radius}{
+    a numeric value specifying the radius when calculating average
+    distortion measure.
+  }
+  \item{inv.alp.c}{
+    the constant C in the inverse learning rate function:
+    alpha0 * C / (C + t);
+  }
 }
 \value{
+  `som.init' initializes a map and returns the code matrix. `som' does
+  the two-step som training in a batch fashion and return a `som'
+  object. `som.train' takes data, code, and traing parameters and
+  perform the requested som training. `som.update' takes a `som' object
+  and further train it with updated paramters. `som.project' projects
+  new data onto the map.
+  
   An object of class \code{"som"} representing the fit, which is a list
   containing the following components:
   
@@ -78,17 +107,20 @@ neigh="gaussian", topol="rect", radius=NULL, rlen=NULL)
     computed as the squared distance (depends topol) between the observation
     vector and its coding vector.
   }
-  \item{alpha}{a vector of initial learning rate parameter for the two
+  \item{alpha0}{a vector of initial learning rate parameter for the two
     training phases.}
-  \item{alphaType}{a character string specifying learning rate funciton
+  \item{alpha}{a character string specifying learning rate funciton
     type.}
   \item{neigh}{a character string specifying the neighborhood function
     type.}
   \item{topol}{a character string specifying the topology type when measuring
     distance in the map.}
-  \item{radius}{a vector of initial radius of the training area in
+  \item{radius0}{a vector of initial radius of the training area in
     som-algorithm for the two training phases.}
   \item{rlen}{a vector of running length in the two training phases.}
+  \item{qerror}{a numeric value of average distortion measure.}
+  \item{code.sum}{a dataframe summaries the number of observations in
+    each map cell.}
 }
 \references{
   Kohonen, Hynninen, Kangas, and Laaksonen (1995), SOM-PAK, the

@@ -19,6 +19,14 @@ ntik=3, yadj=0.1, xlab="", ylab="", ...)
   \item{ylab}{ y label }
   \item{\dots}{ other options to plot }
 }
+\note{
+  This function is not cleanly written. The original purpose was to
+  mimic what GENECLUSTER does. The ylim is hardcoded so that only
+  standardized data could be properly plotted.
+
+  There are visualization methods like umat and sammon in SOM\_PAK3.1,
+  but not implemented here. 
+}
 \author{ Jun Yan <jyan@stat.wisc.edu> }
 \examples{
 foo <- som(matrix(rnorm(1000), 250), 3, 5)
@@ -27,4 +35,3 @@ plot(foo, ylim=c(-1, 1))
 \keyword{
   hplot
 }
-

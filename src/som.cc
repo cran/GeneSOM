@@ -1,221 +1,238 @@
-#include <math.h>
-#include <iostream.h>
-
-#include "lafnames.h"
-#include LA_VECTOR_DOUBLE_H
-#include "blas++.h"
+#include <string>
 
 #include "SomParam.h"
 
-void rect2hexa(double x, double y, double *u, double *v) {
-  if (((int)(y) % 2) == 0) {
-    *u = x;
-    *v = sqrt(3) / 2 * y;
-  }
-  else {
-    *u = x + 1.0/2;
-    *v = sqrt(3) / 2 * y;
-  }
-}
-
-double norm2(LaVectorDouble x) {
-  double ans = 0.0;
-  for (int i = 0; i < x.size(); i++) 
-    ans += x(i)*x(i);
-  ans = sqrt(ans);
-  return ans;
-}
-
-double norm2(LaGenMatDouble x) {
-  double ans = 0.0;
-  for (int i = 0; i < x.size(0); i++) 
-    for (int j = 0; j < x.size(1); j++)
-      ans += x(i, j)*x(i, j);
-  ans = sqrt(ans);
-  return ans;
-}
-
-LaVectorDouble rect2hexa(LaVectorDouble &x) {
-  double u[2];
-  rect2hexa(x(0), x(1), &u[0], &u[1]);
-  LaVectorDouble y(u, 2);
-  return y;
-}
-
-LaGenMatDouble rect2hexa(LaGenMatDouble &x) {
-  double u[2];
-  rect2hexa(x(0, 0), x(0, 1), &u[0], &u[1]);
-  LaGenMatDouble y(u, 1, 2);
-  return y;
-}
-
-
-double lin_radius(double radius_0, int t, int rlen) {
-  return 1.0 + (radius_0 - 1.0) * (double) (rlen - t) / (double) rlen;
-}
-
-
-int find_winner(LaGenMatDouble &data, int size, int obs, 
-		LaGenMatDouble &code) {
-  int winner = 0;
-  double min_dist = norm2(data(LaIndex(obs), LaIndex()) - 
-			       code(LaIndex(0), LaIndex()));
-  for (int i = 1; i < size; i++) {
-    double dd = norm2(data(LaIndex(obs), LaIndex()) - 
-		    code(LaIndex(i), LaIndex()));
+Subscript find_winner(DMatrix &data, Subscript obs,
+		      DMatrix &code) {
+  Subscript winner = 1;
+  Index1D C(1, data.num_cols());
+  Index1D R(1, 1);
+  Index1D Obs(obs, obs);
+  double min_dist = norm2(data(Obs, C) - code(R, C));
+  
+  for (Subscript i = 2; i <= code.num_rows(); i++) {
+    Index1D R(i, i);
+    double dd = norm2(data(Obs, C) - code(R, C));
     if (dd < min_dist) {
       winner = i;
       min_dist = dd;
     }
   }
   return winner;
-} 
-
-LaGenMatDouble SMult(double v, LaGenMatDouble &m) {
-  LaGenMatDouble tmp = m;
-  for (int i = 0; i < m.size(0); i++)
-    for (int j = 0; j < m.size(1); j++) {
-      tmp(i, j) = v * m(i, j);
-    }
-  return tmp;
 }
 
-LaGenMatDouble Smult(LaVectorDouble &v, LaGenMatDouble &m) {
-  LaGenMatDouble tmp = m;
-  for (int i = 0; i < m.size(0); i++)
-    for (int j = 0; j < m.size(1); j++)
-      tmp(i, j) = v(i) * m(i, j);
-  return tmp;
-}
-
-int update(LaGenMatDouble &code, int size, 
-	   LaGenMatDouble &data, int obs, 
-	   double alpha, LaVectorDouble neigh) {
-  for (int i = 0; i < size; i++) {
-    LaGenMatDouble tmp = data(LaIndex(obs), LaIndex()) - code(LaIndex(i), LaIndex());
-    tmp = SMult(alpha * neigh(i),  tmp);
-    tmp = code(LaIndex(i), LaIndex()) + tmp;
-    code(LaIndex(i), LaIndex()) = tmp;
-    //code(LaIndex(i), LaIndex()) = code(LaIndex(i), LaIndex()) + 
-    //  alpha * neigh(i) * tmp;
-    //      (data(LaIndex(obs), LaIndex()) - code(LaIndex(i), LaIndex()));
+int update(DMatrix &code, DMatrix &data,
+	   Subscript obs, double alpha, DVector &neigh) {
+  Index1D Obs(obs, obs), Cols(1, data.num_cols());
+  DMatrix dlt(code.num_rows(), code.num_cols());
+  for (int i = 1; i <= code.num_rows(); i++) {
+    Index1D I(i, i);
+    dlt(I, Cols) = alpha * neigh(i) * 
+      (data(Obs, Cols) - code(I, Cols));
   }
+  code = code + dlt;
   return 0;
 }
 
-LaGenMatDouble genCord(int xdim, int ydim) {
-  LaGenMatDouble cord(xdim * ydim, 2);
-  for (int i = 0; i < xdim; i++) { 
-    for (int j = 0; j < ydim; j++) {
-      cord(LaIndex(ydim * i + j), LaIndex(0)) = i;
-      cord(LaIndex(ydim * i + j), LaIndex(1)) = j;
+DMatrix GenCord(int xdim, int ydim) {
+  DMatrix cord(xdim * ydim, 2);
+  for (int i = 1; i <= ydim; i++) {
+    for (int j = 1; j <= xdim; j++) {
+      int r = xdim * (i - 1) + j;
+      cord(r, 1) = j - 1;
+      cord(r, 2) = i - 1;
     }
   }
   return cord;
 }
 
-
-void visual(LaGenMatDouble &data, LaGenMatDouble &code, 
-	    LaGenMatDouble &cord, int size, 
-	    LaGenMatDouble &vis) {
-  for (int i = 0; i < data.size(0); i++) {
-    int winner = find_winner(data, size, i, code);
-    vis(LaIndex(i), LaIndex(0, 1)) = cord(LaIndex(winner), LaIndex());
-    double dd = norm2(data(LaIndex(i), LaIndex()) - code(LaIndex(winner), LaIndex()));
-    vis(i, 2) = dd * dd;
+void visual(DMatrix &data, DMatrix &code,
+	    DMatrix &cord, DMatrix &vis) {
+  Index1D Cols(1, data.num_cols());
+  for (Subscript i = 1; i <= data.num_rows(); i++) {
+    Subscript winner = find_winner(data, i, code);
+    Index1D I(i,i), J(1,2), Win(winner, winner);
+    vis(I, J) = cord(Win, J);
+    double dd = norm2(data(I,Cols) - code(Win, Cols));
+    vis(i, 3) = sqrt(dd);
   }
 }
 
-int cord2index(double x, double y, int xdim) {
-  return (int) (x + y * xdim);
-}
+double qerror(DMatrix &data, DMatrix &code, 
+	      DMatrix &cord, DMatrix &vis, SomParam &p) {
+  int size = p.mapsize();
+  double qerr = .0;
+  Index1D Cols(1, data.num_cols());
 
-double qerror(LaGenMatDouble &data, LaGenMatDouble &code, 
-	      LaGenMatDouble &cord, int xdim, int ydim, 
-	      LaGenMatDouble &vis, SomParam &p,
-	      double radius) {
-  int size = xdim * ydim;
-  double qerr = 0;
-  for (int i = 0; i < data.size(0); i++) {
-      int winner = cord2index(vis(i, 0), vis(i, 1), xdim);
-      LaVectorDouble nei = p.neigh(cord, size, winner, radius);
-      for (int j = 0; j < size; j++) {
-	if (nei(j) == 0) continue;
-	double dd = norm2(data(LaIndex(i), LaIndex()) - code(LaIndex(j), LaIndex()));
-	qerr += nei(j) * dd * dd;      
+  for (Subscript i = 1; i <= data.num_rows(); i++) {
+    Subscript winner = cord2index(vis(i, 1), vis(i, 2), p.xdim());
+    DVector nei = p.neigh(cord, winner, p.qerror_radius());
+
+    Index1D I(i,i);
+    for (int j = 1; j <= size; j++) {
+      if (nei(j) == 0.0) continue;
+      Index1D J(j,j);
+      double dd = norm2(data(I,Cols) - code(J, Cols));
+      qerr += nei(j) * dd;      
     }
   }
-  return qerr;
+  return qerr / data.num_rows();
 }
 
-extern "C" {  
-  void som(double *data, 
-	   int *nrow, int *ncol,
-	   double *code,
-	   int *xdim, int *ydim,
-	   double *alpha, int *alphaType,
-	   int *neigh, int *topol,
-	   double *radius, int *rlen,
-	   double *vis) {
-    LaGenMatDouble Data(data, *nrow, *ncol);
+void som_train(DMatrix &data, DMatrix &code, DMatrix &cord, 
+	       DMatrix &vis, SomParam &p) {
+  int size = p.mapsize();
+  for (Subscript i = 1; i <= p.rlen(); i++) {
+    Subscript obs = (i - 1) % data.num_rows() + 1;
+    Subscript winner = find_winner(data, obs, code);
 
-    int size = *xdim * *ydim;
-    LaGenMatDouble Code(code, size, *ncol);
-    //cout << "Initial Code book: " << endl << Code;
+    double alp = p.alpha(i);
+    double rad = p.radius(i);
 
-    //set up cord matrix
-    LaGenMatDouble Cord = genCord(*xdim, *ydim);
+    DVector nei = p.neigh(cord, winner, rad);
 
-    SomParam p(*alphaType, *neigh, *topol);
+    update(code, data, obs, alp, nei);
+  }
+}
 
-    double (*Radius)(double radius_0, int t, int rlen);
-    Radius = lin_radius;
-    
-    for (int train = 0; train < 2; train++) {
-      for (int i = 0; i < rlen[train]; i++) {
-	int obs = i % *nrow;
-	int winner = find_winner(Data, size, obs, Code);
+void som_top(DMatrix &data, DMatrix &code, DMatrix &vis, 
+	     SomParam &p1, SomParam &p2, 
+	     double *qerr) {
+  // p1 and p2 only differs in alpha0 and radius0, maybe rlen;
+  DMatrix cord = GenCord(p1.xdim(), p1.ydim());
+  som_train(data, code, cord, vis, p1);
+  som_train(data, code, cord, vis, p2);
+  visual(data, code, cord, vis);
+  *qerr = qerror(data, code, cord, vis, p1);
+}
 
-	//get alpha, radius, neigh
-	double alp = p.alpha(alpha[train], i, rlen[train]);
-	double rad = Radius(radius[train], i, rlen[train]);
-	
-	LaVectorDouble nei = p.neigh(Cord, size, winner, rad);
-	//the dist type is hidden in the p now as p._dist;
 
-	update(Code, size, Data, obs, alp, nei);
-      }
+extern "C"{
+#include <R.h>
+#include <Rdefines.h>
+}
+
+DMatrix asDMatrix(SEXP a) {
+  double *x;
+  x = NUMERIC_POINTER(a);
+  int *dims = INTEGER_POINTER(AS_INTEGER(GET_DIM(a)));
+  DMatrix ans(dims[0], dims[1], x);
+  return ans;
+}
+
+SEXP asSEXP(const DMatrix &a) {
+  int size = a.num_cols() * a.num_rows();
+
+  SEXP val;
+  PROTECT(val = NEW_NUMERIC(size));
+  double *p = NUMERIC_POINTER(val);
+  const double *q = a.begin();
+  for (int i = 0; i < size; i++) p[i] = q[i];
+  SET_CLASS(val, ScalarString(mkChar("matrix")));
+
+  SEXP dim;
+  PROTECT(dim = NEW_INTEGER(2));
+  INTEGER(dim)[0] = a.num_rows(); INTEGER(dim)[1] = a.num_cols();
+  SET_DIM(val, dim);
+
+  UNPROTECT(2);
+  return val;
+}
+
+SEXP getListElement(SEXP list, char *str) {
+  SEXP elmt = R_NilValue, names = getAttrib(list, R_NamesSymbol);
+  int i;
+  for (i = 0; i < length(list); i++)
+    if (strcmp(CHAR(STRING_ELT(names, i)), str) == 0) {
+      elmt = VECTOR_ELT(list, i);
+      break;
     }
-    // visualization
-    LaGenMatDouble Vis(vis, *nrow, 3);
-    visual(Data, Code, Cord, size, Vis);
-  }
+  return elmt;
+}
 
-  void find_qerror(double *data, 
-		   int *nrow, int *ncol,
-		   double *code,
-		   int *xdim, int *ydim,
-		   int *alphaType,
-		   int *neigh, int *topol,
-		   double *radius, 
-		   double *vis, double *qerr) {
-    LaGenMatDouble Data(data, *nrow, *ncol);
+SomParam asSomParam(SEXP p) {
+  int AlphaType, NeighType, TopolType, xdim, ydim, rlen;
+  double alpha0, radius0, err_radius, inv_alp_c;
+  AlphaType = INTEGER(VECTOR_ELT(p, 0))[0];
+  NeighType = INTEGER(VECTOR_ELT(p, 1))[0];
+  TopolType = INTEGER(VECTOR_ELT(p, 2))[0];
+  alpha0 = REAL(VECTOR_ELT(p, 3))[0];
+  radius0 = REAL(VECTOR_ELT(p, 4))[0];
+  rlen = (int) REAL(VECTOR_ELT(p, 5))[0];
+  err_radius = REAL(VECTOR_ELT(p, 6))[0];
+  xdim = (int) REAL(VECTOR_ELT(p, 7))[0];
+  ydim = (int) REAL(VECTOR_ELT(p, 8))[0];
+  inv_alp_c = REAL(VECTOR_ELT(p, 9))[0];
+  SomParam par(AlphaType, NeighType, TopolType, 
+	       alpha0, radius0, rlen,
+	       err_radius, xdim, ydim, inv_alp_c);
+  return par;
+}
 
-    int size = *xdim * *ydim;
-    LaGenMatDouble Code(code, size, *ncol);
-    //cout << "Initial Code book: " << endl << Code;
+extern "C"{
+  SEXP som(SEXP data, SEXP code, SEXP p) {
+    DMatrix Data = asDMatrix(data), Code = asDMatrix(code);
+    SomParam P = asSomParam(p);
+    DMatrix Cord = GenCord(P.xdim(), P.ydim());
+    DMatrix Vis(Data.num_rows(), 3);
+    som_train(Data, Code, Cord, Vis, P);
+    visual(Data, Code, Cord, Vis);
+    double qerr = qerror(Data, Code, Cord, Vis, P);
+    SEXP ans, qe, names;
+    PROTECT(ans = NEW_LIST(3));
+    SET_VECTOR_ELT(ans, 0, asSEXP(Code));
+    SET_VECTOR_ELT(ans, 1, asSEXP(Vis));
+    PROTECT(qe = NEW_NUMERIC(1));
+    NUMERIC_POINTER(qe)[0] = qerr;
+    SET_VECTOR_ELT(ans, 2, qe);    
+
+    PROTECT(names = NEW_STRING(3));
+    SET_STRING_ELT(names, 0, mkChar("code"));
+    SET_STRING_ELT(names, 1, mkChar("visual"));
+    SET_STRING_ELT(names, 2, mkChar("qerror"));
     
-    LaGenMatDouble Vis(vis, size, 3);
-    //cout << "Vis is :" << Vis;
-    LaGenMatDouble Cord = genCord(*xdim, *ydim);
-    //cout << "cord is " << endl << Cord;
-
-    SomParam p(*alphaType, *neigh, *topol);
-
-    *qerr = qerror(Data, Code, 
-		   Cord, *xdim, *ydim, 
-		   Vis, p,
-		   *radius);
+    SET_NAMES(ans, names);
+    UNPROTECT(3);
+    return ans;
   }
 
+  SEXP som_bat(SEXP data, SEXP code, SEXP param1, SEXP param2) {
+    DMatrix Data = asDMatrix(data), Code = asDMatrix(code);
+    //cout << "code = " << Code;
+    SomParam p1 = asSomParam(param1);
+    SomParam p2 = asSomParam(param2);
+    double qerr = 0.0;
+    DMatrix Vis(Data.num_rows(), 3);
+    som_top(Data, Code, Vis, p1, p2, &qerr);
+
+    SEXP ans, qe, names;
+    PROTECT(ans = NEW_LIST(3));
+    SET_VECTOR_ELT(ans, 0, asSEXP(Code));
+    SET_VECTOR_ELT(ans, 1, asSEXP(Vis));
+    PROTECT(qe = NEW_NUMERIC(1));
+    NUMERIC_POINTER(qe)[0] = qerr;
+    SET_VECTOR_ELT(ans, 2, qe);    
+
+    PROTECT(names = NEW_STRING(3));
+    SET_STRING_ELT(names, 0, mkChar("code"));
+    SET_STRING_ELT(names, 1, mkChar("visual"));
+    SET_STRING_ELT(names, 2, mkChar("qerror"));
+    
+    SET_NAMES(ans, names);
+    UNPROTECT(3);
+    return ans;
+  }
+  /*
+  SEXP qerror_rap(SEXP data, SEXP code, SEXP vis, SEXP p) {
+    DMatrix Data = asDMatrix(data), Code = asDMatrix(code), Vis = asDMatrix(vis);
+    SomParam P = asSomParam(p);
+    DMatrix Cord = GenCord(p.xdim(), p.ydim());
+    double qerr = qerror(Data, Code, Cord, Vis);
+    SEXP ans;
+    PROTECT(ans = NEW_NUMERIC(1));
+    NUMERIC_POINTER(ans)[0] = qerr;
+    UNPROTECT(1);
+    return ans;
+  }
+  */
 }
